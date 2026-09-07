@@ -1,11 +1,205 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta name="description" content="Aplikasi Cuaca Modern & Responsif menggunakan OpenWeatherMap API untuk pemantauan prakiraan cuaca real-time dan 5 hari ke depan.">
+    <title>AuraWeather - Aplikasi Prakiraan Cuaca Modern</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    
+    <div class="app-background" id="app-background"></div>
+    <div class="app-overlay"></div>
+
+    <div class="container">
+        <!-- Header & App Navigation -->
+        <header class="app-header">
+            <div class="brand">
+                <i class="fa-solid fa-cloud-sun-rain brand-icon"></i>
+                <div class="brand-text">
+                    <h1 class="brand-title">AuraWeather</h1>
+                    <p class="brand-subtitle">Real-time Weather & Forecast</p>
+                </div>
+            </div>
+
+            <!-- Unit Toggle Button (°C / °F) -->
+            <div class="unit-toggle-wrapper">
+                <button type="button" id="unit-celsius-btn" class="unit-btn active" aria-label="Celsius">°C</button>
+                <span class="unit-divider">|</span>
+                <button type="button" id="unit-fahrenheit-btn" class="unit-btn" aria-label="Fahrenheit">°F</button>
+            </div>
+        </header>
+
+        <!-- Search & Control Section -->
+        <section class="search-section" aria-label="Pencarian Lokasi Cuaca">
+            <form id="search-form" class="search-form">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input 
+                        type="text" 
+                        id="city-input" 
+                        class="search-input" 
+                        placeholder="Cari nama kota (misal: Medan, Jakarta, Tokyo)..." 
+                        autocomplete="off" 
+                        required
+                    >
+                    <button type="button" id="clear-input-btn" class="clear-input-btn hidden" aria-label="Hapus teks input">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="submit" id="search-btn" class="btn btn-primary" aria-label="Cari Cuaca">
+                        <i class="fa-solid fa-arrow-right"></i>
+                        <span>Cari</span>
+                    </button>
+                    <button type="button" id="current-location-btn" class="btn btn-secondary" title="Gunakan Lokasi Saat Ini" aria-label="Gunakan Lokasi Saat Ini">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Search History Chips -->
+            <div id="search-history-container" class="search-history-container hidden">
+                <div class="history-header">
+                    <span class="history-title"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Pencarian</span>
+                    <button type="button" id="clear-history-btn" class="clear-history-btn">Hapus Semua</button>
+                </div>
+                <div id="history-chips" class="history-chips">
+                    <!-- History items will be injected here via JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Alert & Error Banner -->
+        <div id="error-banner" class="error-banner hidden" role="alert" aria-live="assertive">
+            <div class="error-content">
+                <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                <div class="error-text">
+                    <h4 id="error-title" class="error-title">Terjadi Kesalahan</h4>
+                    <p id="error-desc" class="error-desc">Kota tidak ditemukan. Silakan periksa kembali ejaan nama kota.</p>
+                </div>
+            </div>
+            <button type="button" id="close-error-btn" class="close-error-btn" aria-label="Tutup notifikasi error">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="loading-indicator hidden" aria-live="polite">
+            <div class="spinner"></div>
+            <p class="loading-text">Mengambil data cuaca terkini...</p>
+        </div>
+
+        <!-- Main Weather Content -->
+        <main id="weather-content" class="weather-content">
+            <!-- Current Weather Card -->
+            <article id="current-weather" class="current-weather-card">
+                <div class="card-header">
+                    <div class="location-info">
+                        <h2 id="city-name" class="city-name">--</h2>
+                        <p id="date-time" class="date-time">--</p>
+                    </div>
+                    <div id="weather-badge" class="weather-badge">
+                        <span id="weather-main-badge">--</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="temp-display">
+                        <div class="temp-visual">
+                            <img id="current-weather-icon" class="weather-icon-img" src="" alt="Kondisi Cuaca" style="display: none;">
+                            <i id="current-weather-fallback-icon" class="fa-solid fa-cloud-sun weather-icon-fallback"></i>
+                        </div>
+                        <div class="temp-numbers">
+                            <span id="current-temp" class="temp-value">--</span>
+                            <span id="temp-unit" class="temp-symbol">°C</span>
+                        </div>
+                    </div>
+                    <p id="weather-description" class="weather-desc-text">Masukkan nama kota untuk melihat cuaca</p>
+                </div>
+
+                <div class="card-footer">
+                    <!-- Detail Parameters Grid -->
+                    <div class="weather-details-grid">
+                        <div class="detail-item">
+                            <div class="detail-icon">
+                                <i class="fa-solid fa-temperature-half"></i>
+                            </div>
+                            <div class="detail-info">
+                                <span class="detail-label">Terasa Seperti</span>
+                                <span id="feels-like-val" class="detail-value">--°</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-item">
+                            <div class="detail-icon">
+                                <i class="fa-solid fa-droplet"></i>
+                            </div>
+                            <div class="detail-info">
+                                <span class="detail-label">Kelembaban</span>
+                                <span id="humidity-val" class="detail-value">--%</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-item">
+                            <div class="detail-icon">
+                                <i class="fa-solid fa-wind"></i>
+                            </div>
+                            <div class="detail-info">
+                                <span class="detail-label">Kecepatan Angin</span>
+                                <span id="wind-speed-val" class="detail-value">-- m/s</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-item">
+                            <div class="detail-icon">
+                                <i class="fa-solid fa-gauge-high"></i>
+                            </div>
+                            <div class="detail-info">
+                                <span class="detail-label">Tekanan Udara</span>
+                                <span id="pressure-val" class="detail-value">-- hPa</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 5-Day Forecast Section -->
+            <section id="forecast-section" class="forecast-section" aria-label="Ramalan Cuaca 5 Hari">
+                <div class="section-heading">
+                    <h3 class="section-title">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        Ramalan Cuaca 5 Hari
+                    </h3>
+                </div>
+
+                <div id="forecast-cards-container" class="forecast-cards-grid">
+                    <!-- 5-Day Forecast cards will be dynamically rendered here via JavaScript -->
+                    <div class="forecast-placeholder">
+                        <p>Data ramalan cuaca akan muncul di sini.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Dibuat untuk Tugas Pemrograman Web &bull; Powered by <a href="https://openweathermap.org/" target="_blank" rel="noopener noreferrer">OpenWeatherMap API</a></p>
+        </footer>
+    </div>
+
+    <!-- JavaScript (Deferred) -->
+    <script src="script.js" defer></script>
 </body>
 </html>
