@@ -287,7 +287,7 @@ const process5DayForecastData = (forecastList) => {
 };
 
 // ==========================================
-// 7. DOM RENDERING (TEMPLATE LITERALS)
+// 7. DOM RENDERING (DOCUMENT.CREATEELEMENT & SAFE DOM)
 // ==========================================
 
 // Render data cuaca saat ini ke kartu utama
@@ -342,44 +342,87 @@ const renderCurrentWeather = (data) => {
     updateWeatherTheme(mainCondition);
 };
 
-// Render kartu ramalan cuaca 5 hari menggunakan Template Literals & map()
+// Render kartu ramalan cuaca 5 hari menggunakan document.createElement (Aman dari XSS)
 const render5DayForecast = (processedForecastList) => {
     if (!DOM.forecastCardsContainer) return;
 
+    // Bersihkan kontainer secara aman
+    DOM.forecastCardsContainer.replaceChildren();
+
     if (!processedForecastList || processedForecastList.length === 0) {
-        DOM.forecastCardsContainer.innerHTML = `
-            <div class="forecast-placeholder">
-                <p>Data ramalan cuaca tidak tersedia.</p>
-            </div>
-        `;
+        const placeholderDiv = document.createElement('div');
+        placeholderDiv.className = 'forecast-placeholder';
+
+        const p = document.createElement('p');
+        p.textContent = 'Data ramalan cuaca tidak tersedia.';
+
+        placeholderDiv.appendChild(p);
+        DOM.forecastCardsContainer.appendChild(placeholderDiv);
         return;
     }
 
     const unitSymbol = appState.currentUnit === 'metric' ? '°' : '°';
+    const fragment = document.createDocumentFragment();
 
-    // Generate HTML card menggunakan map() dan join()
-    const cardsHTML = processedForecastList.map(item => `
-        <div class="forecast-card" title="${item.description}">
-            <span class="forecast-day">${item.dayName}</span>
-            <span class="forecast-date">${item.formattedDate}</span>
-            <div class="forecast-icon-wrapper">
-                <img 
-                    src="${CONFIG.ICON_BASE_URL}/${item.iconCode}.png" 
-                    alt="${item.description}" 
-                    class="forecast-icon"
-                    loading="lazy"
-                    onerror="this.style.display='none'"
-                >
-            </div>
-            <div class="forecast-temp-range">
-                <span class="forecast-temp-max">${item.tempMax}${unitSymbol}</span>
-                <span class="forecast-temp-min">${item.tempMin}${unitSymbol}</span>
-            </div>
-            <span class="forecast-desc">${item.description}</span>
-        </div>
-    `).join('');
+    // Buat elemen card secara terstruktur menggunakan document.createElement & textContent
+    processedForecastList.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'forecast-card';
+        card.title = item.description;
 
-    DOM.forecastCardsContainer.innerHTML = cardsHTML;
+        // Hari
+        const daySpan = document.createElement('span');
+        daySpan.className = 'forecast-day';
+        daySpan.textContent = item.dayName;
+        card.appendChild(daySpan);
+
+        // Tanggal
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'forecast-date';
+        dateSpan.textContent = item.formattedDate;
+        card.appendChild(dateSpan);
+
+        // Ikon Cuaca
+        const iconWrapper = document.createElement('div');
+        iconWrapper.className = 'forecast-icon-wrapper';
+
+        const img = document.createElement('img');
+        img.src = `${CONFIG.ICON_BASE_URL}/${encodeURIComponent(item.iconCode)}.png`;
+        img.alt = item.description;
+        img.className = 'forecast-icon';
+        img.loading = 'lazy';
+        img.onerror = () => {
+            img.style.display = 'none';
+        };
+        iconWrapper.appendChild(img);
+        card.appendChild(iconWrapper);
+
+        // Rentang Suhu (Max / Min)
+        const tempRange = document.createElement('div');
+        tempRange.className = 'forecast-temp-range';
+
+        const tempMax = document.createElement('span');
+        tempMax.className = 'forecast-temp-max';
+        tempMax.textContent = `${item.tempMax}${unitSymbol}`;
+
+        const tempMin = document.createElement('span');
+        tempMin.className = 'forecast-temp-min';
+        tempMin.textContent = `${item.tempMin}${unitSymbol}`;
+
+        tempRange.appendChild(tempMax);
+        tempRange.appendChild(tempMin);
+        card.appendChild(tempRange);
+
+        // Deskripsi Cuaca
+        const descSpan = document.createElement('span');
+        descSpan.className = 'forecast-desc';
+        descSpan.textContent = item.description;
+        card.appendChild(descSpan);
+
+        fragment.appendChild(card);
+    });
+
+    DOM.forecastCardsContainer.appendChild(fragment);
 };
 
 // ==========================================
@@ -519,18 +562,42 @@ const renderSearchHistory = () => {
 
     if (appState.searchHistory.length === 0) {
         DOM.searchHistoryContainer.classList.add('hidden');
-        DOM.historyChips.innerHTML = '';
+        DOM.historyChips.replaceChildren();
         return;
     }
 
     DOM.searchHistoryContainer.classList.remove('hidden');
-    DOM.historyChips.innerHTML = appState.searchHistory.map(city => `
-        <span class="history-chip" data-city="${city}">
-            <i class="fa-solid fa-location-dot"></i>
-            <span>${city}</span>
-            <i class="fa-solid fa-xmark history-chip-remove" data-remove="${city}" title="Hapus ${city}"></i>
-        </span>
-    `).join('');
+    DOM.historyChips.replaceChildren();
+
+    const fragment = document.createDocumentFragment();
+
+    appState.searchHistory.forEach(city => {
+        const chip = document.createElement('span');
+        chip.className = 'history-chip';
+        chip.setAttribute('data-city', city);
+
+        // Ikon Pin Lokasi
+        const locationIcon = document.createElement('i');
+        locationIcon.className = 'fa-solid fa-location-dot';
+
+        // Label Nama Kota (Aman dari XSS karena menggunakan textContent)
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = city;
+
+        // Tombol Hapus Riwayat
+        const removeIcon = document.createElement('i');
+        removeIcon.className = 'fa-solid fa-xmark history-chip-remove';
+        removeIcon.setAttribute('data-remove', city);
+        removeIcon.title = `Hapus ${city}`;
+
+        chip.appendChild(locationIcon);
+        chip.appendChild(nameSpan);
+        chip.appendChild(removeIcon);
+
+        fragment.appendChild(chip);
+    });
+
+    DOM.historyChips.appendChild(fragment);
 };
 
 // ==========================================
